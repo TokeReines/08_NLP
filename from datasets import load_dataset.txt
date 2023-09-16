@@ -1,0 +1,67 @@
+from datasets import load_dataset
+from datasets import load_metric
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering
+from datasets import load_metric
+import torch
+import matplotlib
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib.font_manager as fm
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+from io import BytesIO
+
+# Set the font in Matplotlib
+plt.rcParams['font.family'] = font.get_name()
+
+bert_map = {    
+    'arabic': 'asafaya/bert-base-arabic',
+    'bengali': 'google/muril-base-cased', 
+    'english': 'bert-base-uncased', 
+    'indonesian': 'cahya/bert-base-indonesian-522M',
+}
+device = 'cuda'
+
+compute_squad = load_metric("squad_v2")
+dataset = load_dataset("copenlu/answerable_tydiqa")
+
+for split in dataset.keys():
+    dataset[split] = dataset[split].add_column('id', list(range(len(dataset[split]))))
+
+language = 'bengali'
+
+# model = torch.load(f'{language}_span_detection.pt')
+model = AutoModelForQuestionAnswering.from_pretrained(bert_map[language]).to(device)
+language_dataset = dataset.filter(lambda example: example['language'] == language)
+tk = AutoTokenizer.from_pretrained(bert_map[language], max_len=300, use_fast=True)
+
+questions = language_dataset['validation'][0:5]['question_text']
+documents = language_dataset['validation'][0:5]['document_plaintext']
+# Iterate over each question-document pair
+for i, (question, document) in enumerate(zip(questions, documents)):
+    
+    # Tokenize the input and send to CUDA
+    inputs = tk(question, return_tensors="pt", truncation="only_second", padding=True, max_length=512)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    
+    # Forward pass, get hidden states
+    with torch.no_grad():
+        outputs = model(**inputs, output_attentions=True)
+    
+    # Only select the attention weights of the last layer
+    attention = outputs['attentions'][-1].squeeze(0).cpu().numpy()
+    
+    # Get the tokens
+    input_ids = inputs['input_ids'][0].cpu().tolist()
+    tokens = tk.convert_ids_to_tokens(input_ids)
+    print(list(zip(input_ids, tokens)))
+    # Create a confusion matrix for every head
+    for head in range(attention.shape[0]):
+        plt.figure(figsize=(10, 8))
+        ax = sns.heatmap(attention[head], xticklabels=tokens, yticklabels=tokens, cmap='Blues', vmin=0, vmax=1)
+        plt.setp(ax.get_xticklabels(), fontproperties=font)
+        plt.setp(ax.get_yticklabels(), fontproperties=font)
+        plt.title(f'Head {head+1}, Pair {i+1}')
+        plt.xticks(rotation=90)
+        plt.yticks(rotation=0)
+        plt.show()
