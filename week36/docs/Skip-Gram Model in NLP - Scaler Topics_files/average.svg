@@ -1,0 +1,27 @@
+<svg id="Emo-Average" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
+    <defs>
+        <clipPath id="clip-path">
+            <path id="Rectangle_9168" data-name="Rectangle 9168" transform="translate(267 10968)" style="fill:#fff" d="M0 0h40v40H0z"/>
+        </clipPath>
+        <style>
+            .cls-5{fill:#1a2c47}
+        </style>
+    </defs>
+    <g id="Mask_Group_699" data-name="Mask Group 699" transform="translate(-267 -10968)" style="clip-path:url(#clip-path)">
+        <g id="Group_31771" data-name="Group 31771" transform="translate(153.491 10957.794)">
+            <g id="Group_31589" data-name="Group 31589" transform="translate(114.509 12.292)">
+                <g id="Group_31529-3" data-name="Group 31529-3">
+                    <path id="Path_21034-3" data-name="Path 21034-3" d="M133.4 12.292c2.8 0 6.958 9.78 7.385 10.046s10.792 1.52 11.651 3.536-7.115 9.308-7.313 9.8 1.8 10.865.156 12.22-11.008-3.949-11.58-3.953-9.993 5.048-12.015 3.663.732-11.372.586-11.933-8.223-7.135-7.313-9.8 11.28-3.259 11.651-3.536 3.992-10.043 6.792-10.043z" transform="translate(-114.499 -12.292)" style="fill:#61738e"/>
+                    <path id="Path_21035-3" data-name="Path 21035-3" d="M132.922 12.63c2.741 0 6.335 9.975 6.754 10.236s10.751 1.119 11.593 3.093-7.151 8.934-7.344 9.416 1.942 10.823.337 12.151-10.783-4.051-11.339-4.054-9.363 5.411-11.339 4.054.663-11.418.522-11.968-8.421-6.983-7.529-9.6 11.413-2.822 11.778-3.093 3.827-10.235 6.567-10.235z" transform="translate(-114.509 -12.283)" style="fill:#a5b3c8"/>
+                </g>
+            </g>
+            <g id="Group_31542" data-name="Group 31542" transform="translate(125.357 24.774)">
+                <g id="Group-2" transform="translate(.746 12.251)">
+                    <path id="Path-4" class="cls-5" d="M140.615 37.079a.821.821 0 0 1-.9.7H126.7a.72.72 0 1 1 0-1.395h13.016a.82.82 0 0 1 .899.695z" transform="translate(-125.799 -36.377)"/>
+                </g>
+                <ellipse id="Ellipse_756-5-3" data-name="Ellipse 756-5-3" class="cls-5" cx="3.332" cy="2.307" rx="3.332" ry="2.307" transform="rotate(-77.881 9.23 -3.176)"/>
+                <ellipse id="Ellipse_756-5-4" data-name="Ellipse 756-5-4" class="cls-5" cx="2.306" cy="3.331" rx="2.306" ry="3.331" transform="matrix(.978 -.21 .21 .978 0 .974)"/>
+            </g>
+        </g>
+    </g>
+</svg>
