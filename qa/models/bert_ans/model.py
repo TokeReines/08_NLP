@@ -14,7 +14,7 @@ class BertAnswerable(nn.Module):
         self.doc_encoder_dropout = nn.Dropout(p=encoder_dropout)
         self.encoder_n_hidden = self.ques_embed.n_out + self.doc_embed.n_out
         self.projection = MLP(self.encoder_n_hidden, 256, dropout)
-        self.classification = MLP(256, 2, dropout, False)
+        self.classification = nn.Linear(256, 2, bias=True)
         self.crit = nn.CrossEntropyLoss()
     
     def forward(self, ques, doc, label):
@@ -22,9 +22,9 @@ class BertAnswerable(nn.Module):
         x_d = self.doc_embed(doc)
         x_q = self.ques_encoder_dropout(x_q)
         x_d = self.doc_encoder_dropout(x_d)
-        # x_q, x_d = x_q[:, 0, :], x_d[:, 0, :]
-        x_q = x_q.mean(dim=1)
-        x_d = x_d.mean(dim=1)
+        x_q, x_d = x_q[:, 0, :], x_d[:, 0, :]
+        # x_q = x_q.mean(dim=1)
+        # x_d = x_d.mean(dim=1)
         x = torch.cat([x_q, x_d], dim=1)
         x = self.projection(x)
         x = self.classification(x)

@@ -1,5 +1,6 @@
 import re
-from nltk.tokenize import word_tokenize
+from nltk.tokenize import word_tokenize, wordpunct_tokenize
+import unicodedata as ud
 import nltk
 
 nltk.download('stopwords')
@@ -25,11 +26,11 @@ def break_into_sentences(paragraph):
     
 def cleanhtml(raw_html):
     CLEANR = re.compile('<.*?>')
-    cleantext = re.sub(CLEANR, '', raw_html)
+    cleantext = re.sub(CLEANR, ' ', raw_html)
     return cleantext
 
 def remove_ref(sentence):
-    result = re.sub("(\[\s*\d+\s*\])", "", sentence)
+    result = re.sub("(\[\s*\d+\s*\])", " ", sentence)
     return result
 
 def clean_arabic(l_arabic):
@@ -60,4 +61,17 @@ def get_tokens(docs):
     return res
 
 def tokenize_cell(doc):
-    return word_tokenize(doc)
+    return wordpunct_tokenize(doc)
+
+# def split_punct(doc):
+#     res = ""
+#     for i, c in enumerate(doc):
+#         if ud.category(c).startswith('P'):
+#             if i == 0:
+#                 res += c
+#             elif i == len(doc) - 1:
+#                 res += ' '
+#                 res += c
+            
+#         else:
+#            res += c 
