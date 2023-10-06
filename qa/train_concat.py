@@ -21,7 +21,7 @@ def training(language, exp_path, bert_name, epoch):
 
 
     optimizer = {
-        'name': 'Adam',
+        'name': 'AdamW',
         'lr': 5e-5,
         'mu': 0.9,
         'nu': 0.98,
@@ -56,7 +56,7 @@ def training(language, exp_path, bert_name, epoch):
     # model = BertAnswerable(bert_name, 3, 'mean', tokenizer.vocab[tokenizer.pad], 0.1, 0.2, dropout=0.5)
     model = TransformerEncoderDecoderLabelingAnswerableConcat(bert_name, 4, 'mean', tokenizer.vocab[tokenizer.pad], 0.2, 0.2, dropout=0.5, finetune=True, stride=256)
     # trainer = Trainer(f'{exp_path}.pt', model, tokenizer, tokenizer.vocab, 'cuda:0')
-    trainer = SeqLabelingAnsTrainerConcat(f'{exp_path}.pt', model, tokenizer, tokenizer.vocab, 'cuda:0', clip=5, update_steps=4)
+    trainer = SeqLabelingAnsTrainerConcat(f'{exp_path}.pt', model, tokenizer, tokenizer.vocab, 'cpu', clip=5, update_steps=1)
     epoch_losses = trainer.train(optimizer, scheduler, epoch, train_dataloader, dev_dataloader, test_dataloader)
     print(epoch_losses)
 

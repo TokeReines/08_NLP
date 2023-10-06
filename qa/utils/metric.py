@@ -46,7 +46,9 @@ class F1Metric2():
         self.pred = np.array([])
         self.gold = np.array([])
 
-    def update(self, y, gold):
+    def update(self, y, gold, y_answerable):
+        y_answerable = y_answerable.eq(1)
+        y[y_answerable] = 0.0
         mask = gold.ge(0)
         y = torch.flatten(y[mask]).cpu().numpy()
         gold = torch.flatten(gold[mask]).cpu().numpy()

@@ -55,7 +55,7 @@ class ConcatDataset(BertDataset):
             # q.append(pad([torch.tensor(ids, dtype=torch.long) for ids in ques], pad_index))
             # docs.append(pad([torch.tensor(ids, dtype=torch.long) for ids in doc], pad_index))
             data.append(pad([torch.tensor(ids, dtype=torch.long) for ids in datum], pad_index))
-            m = [1 for _ in range(len(ques))] + [2 for _ in range(len(doc))]
+            m = [3] + [1 for _ in range(len(ques)-2)] + [3] + [4] + [2 for _ in range(len(doc)-2)] + [4]
             mask.append(torch.tensor(m, dtype=torch.long))
             a.append(torch.tensor(ans, dtype=torch.long))
             a_start.append(ans_start)

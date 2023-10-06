@@ -4,7 +4,7 @@ from tqdm import tqdm
 from torch.optim import Adam, AdamW, Optimizer
 from torch.optim.lr_scheduler import ExponentialLR, _LRScheduler
 from utils.optimizer import InverseSquareRootLR, LinearLR 
-from utils.metric import AccMetric, F1Metric, F1Metric2
+from utils.metric import AccMetric, F1Metric
 
 class Trainer():
     def __init__(self, fname, model, tokenizer, vocab, device, update_steps=4, clip=5):
@@ -130,10 +130,9 @@ class SeqLabelingAnsTrainer(Trainer):
             self.step = 1
             epoch_loss = self.train_step(train_dataloader)
             epoch_losses.append(epoch_loss)
-            loss, acc, f1, f1_2 = self.evaluate(train_dataloader)
-            dev_loss, dev_acc, dev_f1, dev_f1_2 = self.evaluate(dev_dataloader)
+            loss, acc, f1 = self.evaluate(train_dataloader)
+            dev_loss, dev_acc, dev_f1 = self.evaluate(dev_dataloader)
             print(f'epoch {e}: train loss = {epoch_loss}, train acc: {acc}, train f1: {f1}, dev loss: {dev_loss}, dev acc: {dev_acc}, dev f1: {dev_f1}')
-            print(f'fmetric {f1_2}, {dev_f1_2}')
             if dev_f1 > best_score:
                 best_score = dev_f1
                 self.save_model()
@@ -169,7 +168,6 @@ class SeqLabelingAnsTrainer(Trainer):
         self.model.eval()
         metric = AccMetric()
         fmetric = F1Metric()
-        fmetric2 = F1Metric2()
         for batch in dataloader:
             ques, ans_start, ans, answerable, doc = batch
             ques = ques.to(self.device)
@@ -183,11 +181,10 @@ class SeqLabelingAnsTrainer(Trainer):
             y_answerable = self.model.decode(y_answerable)
             total_loss += loss 
             metric.update(y_answerable, answerable, None)
-            fmetric.update(y_label, ans)
-            fmetric2.update(y_label, ans)
+            fmetric.update(y_label, ans, y_answerable)
         
         total_loss /= len(dataloader)
-        return total_loss, metric.score, fmetric.score, fmetric2.score
+        return total_loss, metric.score, fmetric.score
     
 class SeqLabelingAnsTrainerConcat(SeqLabelingAnsTrainer):
 
@@ -220,7 +217,6 @@ class SeqLabelingAnsTrainerConcat(SeqLabelingAnsTrainer):
         self.model.eval()
         metric = AccMetric()
         fmetric = F1Metric()
-        fmetric2 = F1Metric2()
         for batch in dataloader:
             data, ans_start, ans, answerable, mask = batch
             data = data.to(self.device)
@@ -234,8 +230,7 @@ class SeqLabelingAnsTrainerConcat(SeqLabelingAnsTrainer):
             y_answerable = self.model.decode(y_answerable)
             total_loss += loss 
             metric.update(y_answerable, answerable, None)
-            fmetric.update(y_label, ans)
-            fmetric2.update(y_label, ans)
+            fmetric.update(y_label, ans, y_answerable)
         
         total_loss /= len(dataloader)
-        return total_loss, metric.score, fmetric.score, fmetric2.score
+        return total_loss, metric.score, fmetric.score

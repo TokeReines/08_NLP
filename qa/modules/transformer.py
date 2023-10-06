@@ -64,7 +64,6 @@ class TransformerWordEmbedding(nn.Module):
             x = x + self.pos_embed(x)
         return x
 
-
 class TransformerEncoder(nn.Module):
 
     def __init__(
