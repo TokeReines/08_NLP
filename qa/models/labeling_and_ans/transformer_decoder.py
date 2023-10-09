@@ -40,7 +40,7 @@ class TransformerDecoderLabelingAnswerable(nn.Module):
 
 
         layer = TransformerDecoderLayer(n_heads=8, n_model=self.n_out, n_inner=1024)
-        self.transformer_decoder = TransformerDecoder(layer, n_layers=3, n_model=self.n_out)
+        self.transformer_decoder = TransformerDecoder(layer, n_layers=2, n_model=self.n_out)
 
         self.encoder_n_hidden = self.n_out
         self.labeler = nn.Linear(self.encoder_n_hidden, 2, bias=True)
@@ -325,6 +325,61 @@ class TransformerEncoderDecoderLabelingAnswerable(nn.Module):
             m = d_mask & ans_label.ge(0)
             loss_label = self.crit(pred_label[m], ans_label[m])
             return loss_label, pred_label, None
+        
+        return pred_label, pred_answerable
+            
+    def decode(self, x):
+        y = torch.argmax(x, dim=-1)
+        return y
+    
+
+class TransformerDualAttentionLabelingAnswerableConcat(nn.Module):
+    def __init__(self, name, n_layers=4, pooling='mean', pad_index=0, mix_dropout=0., encoder_dropout=0., dropout=0., stride=128, finetune=False, loss_weights=None):
+        super().__init__()
+        self.pad_index = pad_index
+        self.finetune = finetune
+        self.loss_weights = loss_weights
+        self.embed = TransformerEmbedding(name, n_layers=n_layers, pooling=pooling, pad_index=pad_index, mix_dropout=mix_dropout, finetune=finetune, stride=stride)
+        if self.finetune:
+            self.embed_dropout = nn.Dropout(encoder_dropout)
+            
+        layer = TransformerDecoderLayer(n_heads=8, n_model=self.ques_embed.n_out, n_inner=1024)
+        self.transformer_decoder = TransformerDecoder(layer, n_layers=3, n_model=self.ques_embed.n_out)
+
+        self.encoder_n_hidden = self.ques_embed.n_out
+        # self.labeler = nn.Linear(self.encoder_n_hidden, 2, bias=True)
+        # self.classification = nn.Linear(self.encoder_n_hidden, 2, bias=True)
+        self.labeler = MLP(self.ques_embed.n_out, 2, dropout, activation=False)
+        self.classification = MLP(self.ques_embed.n_out, 2, dropout, activation=False)
+        self.crit = nn.CrossEntropyLoss()
+    
+    def forward(self, data, mask, answerable=None, ans_label=None):
+        x = self.embed(data)
+        if self.finetune:
+            x = self.embed_dropout(x)
+
+        q_mask, d_mask = mask.eq(1), mask.eq(2)
+        q_lens, d_lens = q_mask.sum(-1), d_mask.sum(-1)
+        x_q = pad(x[q_mask].split(q_lens.tolist()), 0)
+        x_d = pad(x[d_mask].split(d_lens.tolist()), 0)
+        q_mask = pad(q_mask[q_mask].split(q_lens.tolist()), False)
+        d_mask = pad(d_mask[d_mask].split(d_lens.tolist()), False)
+
+        # x = self.transformer_decoder(x_d, x_q, d_mask, q_mask)
+        
+
+        pred_label = self.labeler(x)
+
+        x_mean = x.mean(dim=1)
+        pred_answerable = self.classification(x_mean)
+
+        if answerable is not None and ans_label is not None:
+            loss_answerable = self.crit(pred_answerable, answerable)
+            
+            m = d_mask & ans_label.ge(0)
+            loss_label = self.crit(pred_label[m], ans_label[m])
+            loss = loss_answerable + loss_label if self.loss_weights is None else loss_answerable * self.loss_weights + (1 - self.loss_weights) * loss_label
+            return loss, pred_label, pred_answerable
         
         return pred_label, pred_answerable
             

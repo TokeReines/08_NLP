@@ -272,6 +272,46 @@ class TransformerDecoderLayer(nn.Module):
             x_tgt = self.mha_attn_norm(x_tgt + self.dropout(self.mha_attn(x_tgt, x_src, x_src, src_mask)))
             x_tgt = self.ffn_norm(x_tgt + self.dropout(self.ffn(x_tgt)))
         return x_tgt
+    
+class DualAttention(nn.Module):
+    def __init__(self, layer, n_model, n_layers):
+        super(DualAttention, self).__init__()
+        self.n_layers = n_layers
+        self.n_model = n_model
+        self.layers = nn.ModuleList([copy.deepcopy(layer) for _ in range(n_layers)])
+    
+    def forward(self, x, y, x_mask, y_mask):
+        # x = x.transpose(0, 1)
+        for layer in self.layers:
+            x, y = layer(x, y, x_mask, y_mask)
+        return x, y
+    
+class DualAttentionLayer(nn.Module):
+    def __init__(self, n_model, att_dropout=0.2):
+        super(DualAttentionLayer, self).__init__()
+        self.n_model = n_model
+        self.x_proj = nn.Linear(n_model * 2, n_model, n_model, bias=True)
+        self.y_proj = nn.Linear(n_model, n_model, bias=True)
+        self.x_norm = nn.LayerNorm(n_model)
+        self.y_norm = nn.LayerNorm(n_model)
+        self.x_dropout = nn.Dropout(att_dropout)
+        self.y_dropout = nn.Dropout(att_dropout)
+    
+    def forward(self, x, y, x_mask, y_mask):
+        l_t = torch.bmm(x, y.movedim(1, 2))
+        x_mask = x_mask.unsqueeze(-1).repeat(1, 1, y_mask.shape[1])
+        y_mask = y_mask.unsqueeze(1).repeat(1, x_mask.shape[1], 1)
+        mask = x_mask & y_mask
+        att_x = torch.softmax(l_t + torch.where(mask, 0., float('-inf')), -1)
+        att_x = self.x_dropout(att_x)
+        att_y = torch.softmax(l_t + torch.where(mask, 0., float('-inf')), 1)
+        att_y = self.y_dropout(att_y)
+        new_y = torch.bmm(att_y.transpose(1, 2), x)
+        new_x = torch.bmm(att_x, torch.cat([y, new_y], -1))
+
+        x = self.x_norm(x + self.x_proj(new_x))
+        y = self.y_norm(y + self.y_proj(new_y))
+        return x, y
 
 class MultiHeadAttention(nn.Module):
 

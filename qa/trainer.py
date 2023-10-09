@@ -48,7 +48,7 @@ class Trainer():
                              eps=optimizer.get('eps', 1e-8),
                              weight_decay=optimizer.get('weight_decay', 0))
         else:
-            optimizer = AdamW(params=[{'params': p, 'lr': optimizer['lr'] * (1 if n.startswith('transformer') else 5 if n.startswith('labeler') else optimizer['lr_rate'])}
+            optimizer = AdamW(params=[{'params': p, 'lr': optimizer['lr'] * (1 if n.startswith('transformer') else optimizer['lr_rate'])}
                                       for n, p in self.model.named_parameters()],
                               lr=optimizer['lr'],
                               betas=(optimizer.get('mu', 0.9), optimizer.get('nu', 0.999)),
