@@ -1,15 +1,18 @@
 
-
+from utils.vocab import Vocab, build_vocabs
 class BertTransform():
-    def __init__(self, tokenizer, fix_len=0, lower_case=True):
+    def __init__(self, tokenizer, fix_len=0, lower_case=True, fn=None):
         self.fix_len = fix_len
         self.tokenizer = tokenizer
         self.lower_case = lower_case
         self.vocab = tokenizer.vocab
+        self.fn = fn
     
     def preprocess(self, token):
         if self.lower_case:
             token = str.lower(token)
+        if self.fn is not None:
+            token = self.fn(token)
         return self.tokenizer(token)
 
     def __call__(self, data):
@@ -24,3 +27,24 @@ class BertTransform():
             res.append(seq)
         return res
     
+class WordTransform():
+    def __init__(self, data, lower_case=True, fn=None, min_freq=2):
+        self.lower_case = lower_case
+        self.vocab = build_vocabs(data, min_freq)
+        self.fn = fn
+    
+    def preprocess(self, token):
+        if self.lower_case:
+            token = str.lower(token)
+        if self.fn is not None:
+            token = self.fn(token)
+        return self.vocab[token]
+
+    def __call__(self, data):
+        res = []
+        for seq in data:
+            seq = [self.preprocess(token) for token in seq]
+            seq = [self.vocab['<bos>']] + seq
+            seq = seq + [self.vocab['<eos>']]
+            res.append(seq)
+        return res

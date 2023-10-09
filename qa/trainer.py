@@ -48,7 +48,7 @@ class Trainer():
                              eps=optimizer.get('eps', 1e-8),
                              weight_decay=optimizer.get('weight_decay', 0))
         else:
-            optimizer = AdamW(params=[{'params': p, 'lr': optimizer['lr'] * (1 if n.endswith('embed') else optimizer['lr_rate'])}
+            optimizer = AdamW(params=[{'params': p, 'lr': optimizer['lr'] * (1 if n.startswith('transformer') else 5 if n.startswith('labeler') else optimizer['lr_rate'])}
                                       for n, p in self.model.named_parameters()],
                               lr=optimizer['lr'],
                               betas=(optimizer.get('mu', 0.9), optimizer.get('nu', 0.999)),
@@ -82,7 +82,8 @@ class Trainer():
             loss /= self.update_steps
             loss.backward()
             if self.step % self.update_steps == 0 or self.step % self.n_batches == 0:
-                nn.utils.clip_grad_norm_(self.model.parameters(), self.clip, norm_type=2)
+                if self.clip > 0:
+                    nn.utils.clip_grad_norm_(self.model.parameters(), self.clip, norm_type=2)
                 self.optimizer.step()
                 self.scheduler.step()
                 self.optimizer.zero_grad()
@@ -144,17 +145,19 @@ class SeqLabelingAnsTrainer(Trainer):
         self.model.train()
         for i, batch in tqdm(enumerate(dataloader)):
             ques, ans_start, ans, answerable, doc = batch
+            ques, ques_word = ques
+            doc, doc_word = doc
             ques = ques.to(self.device)
             answerable = answerable.to(self.device)
             doc = doc.to(self.device)
             ans = ans.to(self.device)
-
+        
             loss, y_label, y_answerable = self.model(ques, doc, answerable, ans)
             epoch_loss += loss.item()
             loss /= self.update_steps
             loss.backward()
             if self.step % self.update_steps == 0 or self.step % self.n_batches == 0:
-                nn.utils.clip_grad_norm_(self.model.parameters(), self.clip, norm_type=2)
+                nn.utils.clip_grad_norm_([p for n, p in self.model.named_parameters() if n.startswith('classification')], self.clip, norm_type=2)
                 self.optimizer.step()
                 self.scheduler.step()
                 self.optimizer.zero_grad()
@@ -170,6 +173,8 @@ class SeqLabelingAnsTrainer(Trainer):
         fmetric = F1Metric()
         for batch in dataloader:
             ques, ans_start, ans, answerable, doc = batch
+            ques, ques_word = ques
+            doc, doc_word = doc
             ques = ques.to(self.device)
             answerable = answerable.to(self.device)
             doc = doc.to(self.device)
@@ -178,10 +183,11 @@ class SeqLabelingAnsTrainer(Trainer):
             loss, y_label, y_answerable = self.model(ques, doc, answerable, ans)
 
             y_label = self.model.decode(y_label)
-            y_answerable = self.model.decode(y_answerable)
-            total_loss += loss 
-            metric.update(y_answerable, answerable, None)
+            if y_answerable is not None:
+                y_answerable = self.model.decode(y_answerable)
+                metric.update(y_answerable, answerable, None)
             fmetric.update(y_label, ans, y_answerable)
+            total_loss += loss 
         
         total_loss /= len(dataloader)
         return total_loss, metric.score, fmetric.score

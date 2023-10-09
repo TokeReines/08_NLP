@@ -8,6 +8,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from modules.dropout import SharedDropout
 
 
 class TransformerWordEmbedding(nn.Module):
@@ -63,6 +64,49 @@ class TransformerWordEmbedding(nn.Module):
         if self.pos is not None:
             x = x + self.pos_embed(x)
         return x
+    
+class MultilevelEmbedding(nn.Module):
+    def __init__(
+        self,
+        n_vocab: int = None,
+        n_embed: int = None,
+        embed_scale: Optional[int] = None,
+        max_len: Optional[int] = 512,
+        pad_index: Optional[int] = None,
+        n_extra_features = 1,
+        dropout = 0.333,
+        concat = False,
+    ):
+        super(MultilevelEmbedding, self).__init__()
+
+        self.n_vocab = n_vocab
+        self.n_embed = n_embed
+        self.n_pos = n_embed 
+        self.embed_scale = embed_scale or n_embed ** 0.5
+        self.max_len = max_len
+        self.n_feat = n_extra_features + 1
+        self.pad_index = pad_index
+        self.concat = concat
+        self.n_out = n_embed * (2 if concat else 1)
+
+        self.embed = nn.Embedding(num_embeddings=n_vocab,
+                                  embedding_dim=n_embed // self.n_feat)
+        self.dropout = SharedDropout(dropout)
+
+        self.pos_embed = PositionalEmbedding(n_model=self.n_pos, max_len=max_len)
+        nn.init.normal_(self.embed.weight, 0, self.n_embed ** -0.5)
+        nn.init.zeros_(self.embed.weight[self.pad_index])
+
+    def forward(self, x, extra_content):
+        mask = x.ne(self.pad_index)
+        lens = x.sum(-1)
+        x = self.embed(x)
+        content = torch.cat(self.dropout(x, extra_content), -1)
+        pe = self.pos_embed(content)
+        if self.concat:
+            return torch.cat([x, pe], -1)
+        else:
+            return x + pe
 
 class TransformerEncoder(nn.Module):
 

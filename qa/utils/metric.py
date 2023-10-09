@@ -24,7 +24,9 @@ class F1Metric():
         self.false_pos = 0.0
         self.false_neg = 0.0
 
-    def update(self, y, gold):
+    def update(self, y, gold, y_answerable):
+        # y_answerable = y_answerable.eq(0)
+        # y[y_answerable] = 0.0
         mask = gold.ge(0)
         y = torch.flatten(y[mask])
         gold = torch.flatten(gold[mask])
@@ -47,7 +49,7 @@ class F1Metric2():
         self.gold = np.array([])
 
     def update(self, y, gold, y_answerable):
-        y_answerable = y_answerable.eq(1)
+        y_answerable = y_answerable.eq(0)
         y[y_answerable] = 0.0
         mask = gold.ge(0)
         y = torch.flatten(y[mask]).cpu().numpy()

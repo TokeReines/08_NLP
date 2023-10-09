@@ -1,14 +1,15 @@
 import pandas as pd
 from models.bert_ans.model import BertAnswerable
-from models.labeling_and_ans.transformer_decoder import TransformerDecoderLabelingAnswerable
+from models.labeling_and_ans.transformer_decoder import TransformerDecoderLabelingAnswerable, TransformerEncoderDecoderLabelingAnswerable
 import pandas as pd
-from utils.transform import BertTransform
+from utils.transform import BertTransform, WordTransform
 from utils.tokenizer import TransformerTokenizer
 from utils.data import BertDataset
 from torch.utils.data import DataLoader
 from trainer import Trainer, SeqLabelingAnsTrainer
+from normalizer import normalize
 
-def training(language, exp_path, bert_name, epoch):
+def training(language, exp_path, bert_name, epoch, use_word=False):
     train_set = pd.read_feather(f'./data/{language}_train.feather')
     dev_set = pd.read_feather(f'./data/{language}_dev.feather')
     test_set = pd.read_feather(f'./data/{language}_test.feather')
@@ -18,20 +19,23 @@ def training(language, exp_path, bert_name, epoch):
     # bert_name = 'cahya/bert-base-indonesian-522M'
     batch_size = 8
     shuffle = True
-
+    word_transform = None
+    if use_word:
+        data = [list(train_set["document_plaintext"]), list(train_set["question_text"])]
+        word_transform = WordTransform(data, lower_case=False)
 
     optimizer = {
         'name': 'Adam',
-        'lr': 1e-4,
+        'lr': 7e-5,
         'mu': 0.9,
-        'nu': 0.98,
-        'eps': 1e-9,
+        'nu': 0.999,
+        'eps': 1e-8,
         'weight_decay': 0,
         'lr_rate': 5
     }
 
     scheduler = {
-        'name': 'inverse',
+        'name': 'linear',
         'warmup_steps': 10,
         'warmup': 0.1,
         'decay': 0.75,
@@ -39,13 +43,13 @@ def training(language, exp_path, bert_name, epoch):
     }
 
     tokenizer = TransformerTokenizer(bert_name)
-    data_transform = BertTransform(tokenizer, fix_len=0)
+    data_transform = BertTransform(tokenizer, fix_len=0, lower_case=False)
 
-    train_dataset = BertDataset(data_transform, 0, train_set, tokenizer)
-    dev_dataset = BertDataset(data_transform, 0, dev_set, tokenizer)
-    test_dataset = BertDataset(data_transform, 0, test_set, tokenizer)
+    train_dataset = BertDataset(data_transform, 0, train_set, tokenizer, word_transform)
+    dev_dataset = BertDataset(data_transform, 0, dev_set, tokenizer, word_transform)
+    test_dataset = BertDataset(data_transform, 0, test_set, tokenizer, word_transform)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=train_dataset.fn_collate)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=train_dataset.fn_collate, shuffle=shuffle)
     dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size, collate_fn=dev_dataset.fn_collate)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=test_dataset.fn_collate)
 
@@ -55,8 +59,9 @@ def training(language, exp_path, bert_name, epoch):
 
     # model = BertAnswerable(bert_name, 3, 'mean', tokenizer.vocab[tokenizer.pad], 0.1, 0.2, dropout=0.5)
     model = TransformerDecoderLabelingAnswerable(bert_name, 3, 'mean', tokenizer.vocab[tokenizer.pad], 0.1, 0.2, dropout=0.5)
+    # model = TransformerEncoderDecoderLabelingAnswerable(bert_name, 2, pooling='mean', pad_index=tokenizer.vocab[tokenizer.pad], mix_dropout=0.2, encoder_dropout=0.2, dropout=0.5, finetune=False, stride=128, loss_weights=None, ans_classification=True, concat_ques_doc=False)
     # trainer = Trainer(f'{exp_path}.pt', model, tokenizer, tokenizer.vocab, 'cuda:0')
-    trainer = SeqLabelingAnsTrainer(f'{exp_path}.pt', model, tokenizer, tokenizer.vocab, 'cuda:0', clip=5, update_steps=1)
+    trainer = SeqLabelingAnsTrainer(f'{exp_path}.pt', model, tokenizer, tokenizer.vocab, 'cuda:0', clip=0, update_steps=1)
     epoch_losses = trainer.train(optimizer, scheduler, epoch, train_dataloader, dev_dataloader, test_dataloader)
     print(epoch_losses)
 
@@ -77,7 +82,7 @@ def testing(language, exp_path, bert_name):
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=test_dataset.fn_collate)
     model = TransformerDecoderLabelingAnswerable(bert_name, 3, 'mean', tokenizer.vocab[tokenizer.pad], 0.1, 0.2, dropout=0.5, loss_weights=None)
 
-    trainer = SeqLabelingAnsTrainer(f'{exp_path}.pt', model, tokenizer, tokenizer.vocab, 'cuda:0', clip=5, update_steps=1)
+    trainer = SeqLabelingAnsTrainer(f'{exp_path}.pt', model, tokenizer, tokenizer.vocab, 'cuda:0', clip=0, update_steps=1)
     trainer.load_model(trainer.fname)
     loss, acc, f1, _f1 = trainer.evaluate(train_dataloader)
     print(loss, acc, f1, _f1)
@@ -86,5 +91,6 @@ def testing(language, exp_path, bert_name):
     loss, acc, f1, _f1 = trainer.evaluate(test_dataloader)
     print(loss, acc, f1, _f1)
 
-training('bengali', './exp/label_ans/bengali_mbert_transformerdecoder_2', 'bert-base-multilingual-cased', 100)
+training('bengali', './exp/label_ans/bengali_bert_transformerencoderdecoder', 'sagorsarker/bangla-bert-base', 100)
+# training('indonesian', './exp/label_ans/indo_bert_transformerencoderdecoder_2', 'cahya/bert-base-indonesian-522M', 100) 
 # testing('indonesian', './exp/label_ans/indonesian_bert_transformerdecoder', 'cahya/bert-base-indonesian-522M')
