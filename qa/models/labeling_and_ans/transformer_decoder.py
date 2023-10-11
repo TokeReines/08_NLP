@@ -5,6 +5,7 @@ from modules.bertembed import TransformerEmbedding
 from modules.lstm import VariationalLSTM
 from modules.dropout import SharedDropout
 from modules.transformer import TransformerDecoder, TransformerDecoderLayer, TransformerEncoder, TransformerEncoderLayer, MultilevelEmbedding
+from modules.labeling import Labeler
 from modules.mlp import MLP
 from utils.fn import pad
 

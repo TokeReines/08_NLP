@@ -38,7 +38,7 @@ class BertDataset(torch.utils.data.Dataset):
         return self.data[index]
     
     def fn_collate(self, data):
-        q, a, a_start, ab, docs, ques_words, doc_words = [], [], [], [], [], [], []
+        q, a, a_start, ab, docs, ques_words, doc_words, starts, ends = [], [], [], [], [], [], [], [], []
         pad_index = self.tokenizer.vocab[self.tokenizer.pad]
         if self.transform_word is not None:
             word_pad_index = self.transform_word.vocab['<pad>']
@@ -46,6 +46,20 @@ class BertDataset(torch.utils.data.Dataset):
             ques, ans_start, ans, answerable, doc, ques_word, doc_word = d
             q.append(pad([torch.tensor(ids, dtype=torch.long) for ids in ques], pad_index))
             docs.append(pad([torch.tensor(ids, dtype=torch.long) for ids in doc], pad_index))
+            start = 0
+            end = 0
+            prev = 0
+            for i in range(len(ans)):
+                if prev == 0 and ans[i] == 1:
+                    start = i
+                if prev == 1 and (ans[i] == 0 or ans[i] == -1):
+                    end = i-1
+                prev = ans[i]
+            # if end < start:
+            #     print(start, end, ans)
+            assert end >= start
+            starts.append(start)
+            ends.append(end)
             a.append(torch.tensor(ans, dtype=torch.long))
             a_start.append(ans_start)
             ab.append(answerable)
@@ -56,13 +70,15 @@ class BertDataset(torch.utils.data.Dataset):
         doc = pad(docs, pad_index)
         ans_start = torch.tensor(a_start, dtype=torch.long)
         answerable = torch.tensor(ab, dtype=torch.long)
+        starts = torch.tensor(starts, dtype=torch.long)
+        ends = torch.tensor(ends, dtype=torch.long)
         ans = pad(a, -1)
         if len(ques_words) > 0:
             ques_words = pad(ques_words, word_pad_index)
             doc_words = pad(doc_words, word_pad_index)
 
-            return (ques, ques_words), ans_start, ans, answerable, (doc, doc_words)
-        return (ques, None), ans_start, ans, answerable, (doc, None)
+            return (ques, ques_words), ans_start, (ans, starts, ends), answerable, (doc, doc_words)
+        return (ques, None), ans_start, (ans, starts, ends), answerable, (doc, None)
     
 class ConcatDataset(BertDataset):
     def fn_collate(self, data1):

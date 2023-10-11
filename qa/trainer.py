@@ -147,12 +147,15 @@ class SeqLabelingAnsTrainer(Trainer):
             ques, ans_start, ans, answerable, doc = batch
             ques, ques_word = ques
             doc, doc_word = doc
+            ans, start, end = ans
+            start = start.to(self.device)
+            end = end.to(self.device)
             ques = ques.to(self.device)
             answerable = answerable.to(self.device)
             doc = doc.to(self.device)
             ans = ans.to(self.device)
         
-            loss, y_label, y_answerable = self.model(ques, doc, answerable, ans)
+            loss, y_label, y_answerable = self.model(ques, doc, answerable, ans, start=start, end=end)
             epoch_loss += loss.item()
             loss /= self.update_steps
             loss.backward()
@@ -175,14 +178,17 @@ class SeqLabelingAnsTrainer(Trainer):
             ques, ans_start, ans, answerable, doc = batch
             ques, ques_word = ques
             doc, doc_word = doc
+            ans, start, end = ans
+            start = start.to(self.device)
+            end = end.to(self.device)
             ques = ques.to(self.device)
             answerable = answerable.to(self.device)
             doc = doc.to(self.device)
             ans = ans.to(self.device)
 
-            loss, y_label, y_answerable = self.model(ques, doc, answerable, ans)
+            loss, y_label, y_answerable = self.model(ques, doc, answerable, ans, start=start, end=end)
 
-            y_label = self.model.decode(y_label)
+            y_label = self.model.decode_qa(y_label[0], y_label[1])
             if y_answerable is not None:
                 y_answerable = self.model.decode(y_answerable)
                 metric.update(y_answerable, answerable, None)
