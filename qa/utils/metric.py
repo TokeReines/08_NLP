@@ -49,17 +49,7 @@ class F1Metric2():
         self.gold = np.array([])
 
     def update(self, y, gold, y_answerable):
-        y_answerable = y_answerable.eq(0)
-        y[y_answerable] = 0.0
-        mask = gold.ge(0)
-        y = torch.flatten(y[mask]).cpu().numpy()
-        gold = torch.flatten(gold[mask]).cpu().numpy()
-        # pos = gold > 0
-        # self.true_pos += gold[pos].eq(y[pos]).sum()
-        # self.false_neg += gold[pos].ne(y[pos]).sum()
-        # self.false_pos += y[y > 0].ne(gold[y > 0]).sum()
-        self.pred = np.hstack([self.pred, y])
-        self.gold = np.hstack([self.gold, gold])
+        batch, seq
 
     @property
     def score(self):

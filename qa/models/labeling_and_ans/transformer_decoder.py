@@ -44,13 +44,14 @@ class TransformerDecoderLabelingAnswerable(nn.Module):
         self.transformer_decoder = TransformerDecoder(layer, n_layers=2, n_model=self.n_out)
 
         self.encoder_n_hidden = self.n_out
-        self.labeler = nn.Linear(self.encoder_n_hidden, 2, bias=True)
+        # self.labeler = nn.Linear(self.encoder_n_hidden, 2, bias=True)
+        self.labeler = Labeler(self.encoder_n_hidden)
         self.classification = nn.Linear(self.encoder_n_hidden, 2, bias=True)
         # self.labeler = MLP(self.ques_embed.n_out, 2, dropout, activation=False)
         # self.classification = MLP(self.ques_embed.n_out, 2, dropout, activation=False)
         self.crit = nn.CrossEntropyLoss()
     
-    def forward(self, ques, doc, answerable=None, ans_label=None, ques_word=None, doc_word=None):
+    def forward(self, ques, doc, answerable=None, ans_label=None, ques_word=None, doc_word=None, start=None, end=None):
         x_q = self.ques_embed(ques)
         x_d = self.doc_embed(doc)
         q_mask, d_mask = ques.ne(self.pad_index).any(-1), doc.ne(self.pad_index).any(-1)
@@ -60,7 +61,8 @@ class TransformerDecoderLabelingAnswerable(nn.Module):
         
         x = self.transformer_decoder(x_d, x_q, d_mask, q_mask)
 
-        pred_label = self.labeler(x)
+        # pred_label = self.labeler(x)
+        pred_start, pred_end = self.labeler(x, d_mask)
 
         # x_mean = x.mean(dim=1)
         lens = torch.sum(d_mask, -1, keepdim=True)
@@ -69,16 +71,30 @@ class TransformerDecoderLabelingAnswerable(nn.Module):
 
         if answerable is not None and ans_label is not None:
             loss_answerable = self.crit(pred_answerable, answerable)
-            m = d_mask & ans_label.ge(0)
-            loss_label = self.crit(pred_label[m], ans_label[m])
+            # m = d_mask & ans_label.ge(0)
+            # loss_label = self.crit(pred_label[m], ans_label[m])
+            loss_label = self.crit(pred_start, start) + self.crit(pred_end, end)
             loss = loss_answerable + loss_label if self.loss_weights is None else loss_answerable * self.loss_weights + (1 - self.loss_weights) * loss_label
-            return loss, pred_label, pred_answerable
+            return loss, (pred_start, pred_end), pred_answerable
         
-        return pred_label, pred_answerable
+        return loss, (pred_start, pred_end), pred_answerable
             
     def decode(self, x):
         y = torch.argmax(x, dim=-1)
         return y
+    
+    def decode_qa(self, x, y):
+        b, l = x.shape
+        t = x.new_zeros(*x.shape)
+        x = torch.argmax(x, -1)
+        y = torch.argmax(y, -1)
+        for i in range(b):
+            s = x[i]
+            e = y[i]
+            if s == 0 or e == 0 or s > e:
+                continue
+            t[i, s:e+1] = 1
+        return t
     
 
 class TransformerDecoderLabelingAnswerableConcat(nn.Module):
@@ -235,23 +251,21 @@ class TransformerEncoderDecoderLabelingAnswerable(nn.Module):
 
         assert use_encoder or use_decoder
 
-        self.ques_embed = TransformerEmbedding(name, n_layers=n_layers, pooling=pooling, pad_index=pad_index, mix_dropout=mix_dropout, finetune=finetune, stride=stride)
-        self.doc_embed = TransformerEmbedding(name, n_layers=n_layers, pooling=pooling, pad_index=pad_index, mix_dropout=mix_dropout, finetune=finetune, stride=stride)
+        self.ques_embed = TransformerEmbedding(name, n_layers=n_layers, pooling=pooling, pad_index=pad_index, mix_dropout=mix_dropout, finetune=finetune, stride=stride, n_out=512)
+        self.doc_embed = TransformerEmbedding(name, n_layers=n_layers, pooling=pooling, pad_index=pad_index, mix_dropout=mix_dropout, finetune=finetune, stride=stride, n_out=512)
         if self.finetune:
             self.embed_dropout = nn.Dropout(encoder_dropout)
         self.n_out = self.ques_embed.n_out
 
         if self.use_encoder:
-            layer_encoder = TransformerEncoderLayer(n_heads=8, n_model=self.n_out, n_inner=1024)
+            layer_encoder = TransformerEncoderLayer(n_heads=8, n_model=self.n_out, n_inner=768)
             self.transformer_encoder = TransformerEncoder(layer_encoder, n_layers=3, n_model=self.n_out)
-            layer_encoder = TransformerEncoderLayer(n_heads=8, n_model=self.n_out, n_inner=1024)
-            self.transformer_encoder_2 = TransformerEncoder(layer_encoder, n_layers=3, n_model=self.n_out)
         if self.use_decoder:
-            layer = TransformerDecoderLayer(n_heads=8, n_model=self.n_out, n_inner=1024)
+            layer = TransformerDecoderLayer(n_heads=8, n_model=self.n_out, n_inner=768)
             self.transformer_decoder = TransformerDecoder(layer, n_layers=3, n_model=self.n_out)
 
         self.encoder_n_hidden = self.n_out
-        self.labeler = nn.Linear(self.encoder_n_hidden, 2, bias=True)
+        self.labeler = Labeler(self.encoder_n_hidden)
         if ans_classification:
             self.classification = nn.Linear(self.encoder_n_hidden, 2, bias=True)
         self.crit = nn.CrossEntropyLoss()
@@ -270,68 +284,82 @@ class TransformerEncoderDecoderLabelingAnswerable(nn.Module):
 
         return x_q, x_d
     
-    def forward(self, ques, doc, answerable=None, ans_label=None):
+    def forward(self, ques, doc, answerable=None, ans_label=None, start=None, end=None):
         x_q = self.ques_embed(ques)
         x_d = self.doc_embed(doc)
 
         q_mask, d_mask = ques.ne(self.pad_index).any(-1), doc.ne(self.pad_index).any(-1)
+        m_len = q_mask.shape[1]
+        x_cat = torch.cat([x_q, x_d], dim=1)
+        x_mask = torch.cat([q_mask, d_mask], dim=1)
+        x = self.transformer_encoder(x_cat, x_mask)
+        x = self.transformer_decoder(x_d, x_cat, d_mask, x_mask)
 
         # x_q, x_d = self.do_lstm(x_q, q_mask, x_d, d_mask)
 
-        if self.concat_ques_doc:
-            q_len = x_q.shape[1]
-            x_cat = torch.cat([x_q, x_d], dim=1)
-            cat_mask = torch.cat([q_mask, d_mask], dim=1)
-            if self.use_encoder:
-                x_cat = self.transformer_encoder(x_cat, cat_mask)
-                x_d = x_cat[:, q_len:, :]
-                x_q = x_cat[:, :q_len, :]
-            if self.use_decoder:
-                x = self.transformer_decoder(x_d, x_q, d_mask, q_mask)
-                x_cat = x
-                cat_mask = d_mask
-            else:
-                x = x_d
-        else:
-            if self.use_encoder:
-                x_q = self.transformer_encoder(x_q, q_mask)
-                x_d = self.transformer_encoder_2(x_d, d_mask)
-            if self.use_decoder:
-                x = self.transformer_decoder(x_d, x_q, d_mask, q_mask)
-                x_cat = x
-                cat_mask = d_mask
-            else:
-                x = x_d
-                x_cat = torch.cat([x_q, x_d], dim=1)
-                cat_mask = torch.cat([q_mask, d_mask], dim=1)
+        # if self.concat_ques_doc:
+        #     q_len = x_q.shape[1]
+        #     x_cat = torch.cat([x_q, x_d], dim=1)
+        #     cat_mask = torch.cat([q_mask, d_mask], dim=1)
+        #     if self.use_encoder:
+        #         x_cat = self.transformer_encoder(x_cat, cat_mask)
+        #         x_d = x_cat[:, q_len:, :]
+        #         x_q = x_cat[:, :q_len, :]
+        #     if self.use_decoder:
+        #         x = self.transformer_decoder(x_d, x_q, d_mask, q_mask)
+        #         x_cat = x
+        #         cat_mask = d_mask
+        #     else:
+        #         x = x_d
+        # else:
+        #     if self.use_encoder:
+        #         x_q = self.transformer_encoder(x_q, q_mask)
+        #         x_d = self.transformer_encoder_2(x_d, d_mask)
+        #     if self.use_decoder:
+        #         x = self.transformer_decoder(x_d, x_q, d_mask, q_mask)
+        #         x_cat = x
+        #         cat_mask = d_mask
+        #     else:
+        #         x = x_d
+        #         x_cat = torch.cat([x_q, x_d], dim=1)
+        #         cat_mask = torch.cat([q_mask, d_mask], dim=1)
 
               
-        pred_label = self.labeler(x)
+        # pred_label = self.labeler(x)
+        pred_start, pred_end = self.labeler(x, d_mask)
         # print(pred_label)
         # x_mean = x.mean(dim=1)
-        if self.ans_classification:
-            lens = torch.sum(cat_mask, -1, keepdim=True)
-            x_mean = torch.sum(x_cat * cat_mask.unsqueeze(-1), dim=1) / lens
-            pred_answerable = self.classification(x_mean)
+        lens = torch.sum(x_mask, -1, keepdim=True)
+        x_mean = torch.sum(x_cat * x_mask.unsqueeze(-1), dim=1) / lens
+        pred_answerable = self.classification(x_mean)
 
-
-            if answerable is not None and ans_label is not None:
-                loss_answerable = self.crit(pred_answerable, answerable)
-                m = d_mask & ans_label.ge(0)
-                loss_label = self.crit(pred_label[m], ans_label[m])
-                loss = loss_answerable + loss_label if self.loss_weights is None else loss_answerable * self.loss_weights + (1 - self.loss_weights) * loss_label
-                return loss, pred_label, pred_answerable
+        if answerable is not None and ans_label is not None:
+            loss_answerable = self.crit(pred_answerable, answerable)
+            # m = d_mask & ans_label.ge(0)
+            # loss_label = self.crit(pred_label[m], ans_label[m])
+            # print(m.shape, pred_start.shape, pred_end.shape, start, end)
+            loss_label = self.crit(pred_start, start) + self.crit(pred_end, end)
+            loss = loss_answerable + loss_label if self.loss_weights is None else loss_answerable * self.loss_weights + (1 - self.loss_weights) * loss_label
+            return loss, (pred_start, pred_end), pred_answerable
         
-        else:
-            m = d_mask & ans_label.ge(0)
-            loss_label = self.crit(pred_label[m], ans_label[m])
-            return loss_label, pred_label, None
-        
-        return pred_label, pred_answerable
+        return (pred_start, pred_end), pred_answerable
             
     def decode(self, x):
         y = torch.argmax(x, dim=-1)
         return y
+    
+    def decode_qa(self, x, y):
+        b, l = x.shape
+        t = x.new_zeros(*x.shape)
+        x = torch.argmax(x, -1)
+        y = torch.argmax(y, -1)
+        for i in range(b):
+            s = x[i]
+            e = y[i]
+            if s == 0 or e == 0 or s > e:
+                continue
+            t[i, s:e+1] = 1
+        return t
     
 
 class TransformerDualAttentionLabelingAnswerableConcat(nn.Module):

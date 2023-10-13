@@ -11,14 +11,14 @@ class TransformerEncoderLabelingAnswerable(nn.Module):
         self.pad_index = pad_index
         self.finetune = finetune
         self.loss_weights = loss_weights
-        self.ques_embed = TransformerEmbedding(name, n_layers=n_layers, pooling=pooling, pad_index=pad_index, mix_dropout=mix_dropout, finetune=finetune, stride=stride)
-        self.doc_embed = TransformerEmbedding(name, n_layers=n_layers, pooling=pooling, pad_index=pad_index, mix_dropout=mix_dropout, finetune=finetune, stride=stride)
+        self.ques_embed = TransformerEmbedding(name, n_layers=n_layers, pooling=pooling, pad_index=pad_index, mix_dropout=mix_dropout, finetune=finetune, stride=stride, n_out=512)
+        self.doc_embed = TransformerEmbedding(name, n_layers=n_layers, pooling=pooling, pad_index=pad_index, mix_dropout=mix_dropout, finetune=finetune, stride=stride, n_out=512)
         if self.finetune:
             self.dropout = nn.Dropout(encoder_dropout)
 
         self.n_out = self.ques_embed.n_out
-        layer = TransformerEncoderLayer(n_heads=8, n_model=self.n_out, n_inner=1024)
-        self.transformer_encoder = TransformerEncoder(layer, n_layers=3, n_model=self.n_out)
+        layer = TransformerEncoderLayer(n_heads=8, n_model=self.n_out, n_inner=768)
+        self.transformer_encoder = TransformerEncoder(layer, n_layers=5, n_model=self.n_out)
 
         self.encoder_n_hidden = self.n_out
         # self.labeler = nn.Linear(self.encoder_n_hidden, 2, bias=True)
@@ -47,7 +47,7 @@ class TransformerEncoderLabelingAnswerable(nn.Module):
 
         if answerable is not None and ans_label is not None:
             loss_answerable = self.crit(pred_answerable, answerable)
-            m = d_mask & ans_label.ge(0)
+            # m = d_mask & ans_label.ge(0)
             # loss_label = self.crit(pred_label[m], ans_label[m])
             # print(m.shape, pred_start.shape, pred_end.shape, start, end)
             loss_label = self.crit(pred_start, start) + self.crit(pred_end, end)
