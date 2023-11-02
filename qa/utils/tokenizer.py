@@ -56,12 +56,10 @@ class TransformerTokenizer:
 
     @property
     def bos(self):
-        # return self.tokenizer.bos_token or self.tokenizer.cls_token
         return self.tokenizer.cls_token
 
     @property
     def eos(self):
-        # return self.tokenizer.eos_token or self.tokenizer.sep_token
         return self.tokenizer.sep_token
 
     def decode(self, text: List) -> str:

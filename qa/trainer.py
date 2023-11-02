@@ -38,8 +38,6 @@ class Trainer():
                 self.save_model()
                 print('saved')
         return epoch_losses
-        # loss, acc = self.evaluate(test_dataloader)
-        # print(f'test loss = {loss},test acc: {acc}')
 
     def init_optimizer(self, optimizer):
         if optimizer['name'] == 'Adam':
@@ -57,14 +55,7 @@ class Trainer():
                     nd in n for nd in no_decay)], 'weight_decay': 0.0}
                 ]           
             optimizer_grouped_parameters = [{'params': p, 'lr': optimizer['lr'] * (1 if n.startswith('embed') else optimizer['lr_rate']), 'weight_decay': optimizer.get('weight_decay', 0) if not any(nd in n for nd in no_decay) else 0.0} for n, p in self.model.named_parameters()]
-            #                           for n, p in self.model.named_parameters()]
             optimizer = AdamW(optimizer_grouped_parameters, lr=optimizer['lr'])
-            # optimizer = AdamW(params=[{'params': p, 'lr': optimizer['lr'] * (1 if n.startswith('embed') else optimizer['lr_rate'])}
-            #                           for n, p in self.model.named_parameters()],
-            #                   lr=optimizer['lr'],
-            #                   betas=(optimizer.get('mu', 0.9), optimizer.get('nu', 0.999)),
-            #                   eps=optimizer.get('eps', 1e-8),
-            #                   weight_decay=optimizer.get('weight_decay', 0))
         return optimizer
     
     def init_scheduler(self, scheduler):
@@ -142,9 +133,8 @@ class SeqLabelingAnsTrainer(Trainer):
             self.step = 1
             epoch_loss = self.train_step(train_dataloader)
             epoch_losses.append(epoch_loss)
-            # _, acc, f1 = self.evaluate(test_dataloader)
             dev_loss, dev_acc, dev_f1 = self.evaluate(dev_dataloader)
-            # print(f'epoch {e}: train loss = {epoch_loss}, test acc: {acc}, test f1: {f1}, dev loss: {dev_loss}, dev acc: {dev_acc}, dev f1: {dev_f1}')
+
             print(f'epoch {e}: train loss = {epoch_loss}, dev loss: {dev_loss}, dev acc: {dev_acc}, dev f1: {dev_f1}')
             if dev_f1[0] > best_score:
                 best_score = dev_f1[0]

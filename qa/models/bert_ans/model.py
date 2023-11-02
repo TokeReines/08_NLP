@@ -23,8 +23,7 @@ class BertAnswerable(nn.Module):
         x_q = self.ques_encoder_dropout(x_q)
         x_d = self.doc_encoder_dropout(x_d)
         x_q, x_d = x_q[:, 0, :], x_d[:, 0, :]
-        # x_q = x_q.mean(dim=1)
-        # x_d = x_d.mean(dim=1)
+
         x = torch.cat([x_q, x_d], dim=1)
         x = self.projection(x)
         x = self.classification(x)

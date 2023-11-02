@@ -24,11 +24,6 @@ def convert_to_feather(language, path, tokenizer=None):
     dev_set.to_feather(f'./{path}/{language}_dev.feather')
     test_set.to_feather(f'./{path}/{language}_test.feather')
 
-# # convert_to_feather('arabic', 'data')
-# # convert_to_feather('indonesian', 'data')
-# tokenizer = BasicTokenizer()
-# convert_to_feather('bengali', 'data', tokenizer)
-
 def get_start(ans):
     start = 0
     end = 0
@@ -92,10 +87,3 @@ def get_max(language):
     print(t.max())
     t = test_set.apply(lambda x: x['end_pos'] - x['start_pos'], 1)
     print(t.max())
-
-# add_start_end("indonesian", "data")
-# add_start_end("arabic", "data")
-# add_start_end("bengali", "data")
-# get_max("indonesian")
-# get_max("bengali")
-# get_max("arabic")

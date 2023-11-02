@@ -45,10 +45,8 @@ def visualize(language, exp_path, bert_name, epoch, use_word=False, batch_size=8
     loss, acc, f1 = trainer.evaluate(train_dataloader)
     print(loss, acc, f1)
     y, _, att_x, att_y = trainer.infer(train_dataloader)
-    # print(torch.argmax(y[0]).cpu().numpy(), torch.argmax(y[1]).cpu().numpy())
     att_x = att_x.squeeze(0).cpu().numpy()
     att_y = att_y.squeeze(0).cpu().numpy()
-    # print(att_y.shape)
     
     
     plt.figure(figsize=(15, 10))
@@ -58,31 +56,3 @@ def visualize(language, exp_path, bert_name, epoch, use_word=False, batch_size=8
     plt.yticks(rotation=0)
     plt.savefig('./indo_heatmap.pdf', bbox_inches="tight")
     plt.show()
-
-    
-
-# training('bengali', './exp/label_ans/bengali_bert_transformerdecoder_start_end_pred', 'sagorsarker/bangla-bert-base', 25, batch_size=4)
-# training('bengali', './exp/label_ans/test_bn_banglabert', 'sagorsarker/bangla-bert-base', 30, batch_size=12)
-# training('bengali', './exp/label_ans/test_bn_muril_2', 'google/muril-base-cased', 30, batch_size=8)
-# training('indonesian', './exp/label_ans/test_id_xlm', 'xlm-roberta-base', 25, batch_size=3)
-# training('arabic', './exp/label_ans/test_ar.xlm', 'xlm-roberta-base', 25, batch_size=1)
-# training('bengali', './exp/label_ans/test_bn_xlm_4', 'xlm-roberta-base', 30, batch_size=8)
-# training('indonesian', './exp/label_ans/indo_bert_transformerencoderdecoder_2', 'cahya/bert-base-indonesian-522M', 100) 
-# training('indonesian', './exp/label_ans/indonesian_xlmr_transformerencoder_start_end_pred_3', 'xlm-roberta-base', 30, batch_size=2)
-# training('bengali', './exp/label_ans/one_bert/xlm_bn_transdual_nofinetune', 'xlm-roberta-base', 10, batch_size=16, embed_type='one-bert', finetune=False)
-# training('arabic', './exp/label_ans/two_bert/xlm_ar_transdual_nofinetune', 'xlm-roberta-base', 10, batch_size=2, embed_type='two-bert', finetune=False)
-# training('arabic', './exp/label_ans/one_bert/xlm_ar_transdual_finetune', 'xlm-roberta-base', 5, batch_size=1, embed_type='one-bert', finetune=True)
-# training('arabic', './exp/label_ans/one_bert/arabert_ar_transdual_finetune', 'aubmindlab/bert-base-arabertv2', 10, batch_size=1, embed_type='one-bert', finetune=True)
-# training('arabic', './exp/label_ans/one_bert/xlm_id_transdual_finetune', 'xlm-roberta-base', 10, batch_size=2, embed_type='one-bert', finetune=True)
-# training('bengali', './exp/label_ans/one_bert/xlm_id_transdual_finetune', 'xlm-roberta-base', 10, batch_size=2, embed_type='one-bert', finetune=True)
-# training('indonesian', './exp/label_ans/one_bert/xlm_id_transdual_finetune', 'xlm-roberta-base', 10, batch_size=2, embed_type='one-bert', finetune=True)
-# training('indonesian', './exp/label_ans/one_bert/bertindo_id_dual_finetune', 'cahya/bert-base-indonesian-522M', 5, batch_size=2, embed_type='one-bert')
-# training('arabic', './exp/label_ans/one_bert/arabert_ar_dual_finetune', 'aubmindlab/bert-base-arabertv2', 5, batch_size=2, embed_type='one-bert')
-# training('bengali', './exp/label_ans/one_bert/banglabert_bn_dual_finetune', 'sagorsarker/bangla-bert-base', 5, batch_size=4, embed_type='one-bert')
-# training('bengali', './exp/label_ans/one_bert/muril_bn_dual_finetune', 'google/muril-base-cased', 5, batch_size=4, embed_type='one-bert')
-
-# visualize('bengali', './exp/label_ans/one_bert/xlm_bn_transdual_finetune', 'xlm-roberta-base', 10, batch_size=4, embed_type='one-bert', finetune=True)
-# visualize('arabic', './exp/label_ans/one_bert/xlm_bn_transdual_finetune', 'xlm-roberta-base', 10, batch_size=4, embed_type='one-bert', finetune=True)
-visualize('indonesian', './exp/label_ans/one_bert/xlm_id_transdual_finetune', 'xlm-roberta-base', 1, batch_size=1, embed_type='one-bert', id=40)
-
-# training('bengali', './exp/label_ans/one_bert/muril_bn_transdual_finetune', 'google/muril-base-cased', 10, batch_size=4, embed_type='one-bert', finetune=True)

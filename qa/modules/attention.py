@@ -113,8 +113,6 @@ class TransformerDualAttentionLayer(nn.Module):
         x = self.x_norm(x + self.x_proj(new_x))
         y = self.y_norm(y + self.y_proj(new_y_))
 
-        # x = self.x_norm(x + self.x_proj(new_x))
-        # y = self.y_norm(y + self.y_proj(new_y))
         x = self.ques_self(x, x_mask)
         y = self.doc_self(y, y_mask)
         if return_att:

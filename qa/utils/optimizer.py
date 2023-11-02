@@ -23,10 +23,6 @@ class InverseSquareRootLR(_LRScheduler):
 
 
 class PolynomialLR(_LRScheduler):
-    r"""
-    Set the learning rate for each parameter group using a polynomial defined as: `lr = base_lr * (1 - t / T) ^ (power)`,
-    where `t` is the current epoch and `T` is the maximum number of epochs.
-    """
 
     def __init__(
         self,

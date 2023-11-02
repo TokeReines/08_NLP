@@ -30,11 +30,7 @@ def to_list_tuple(df, l_name, tokenizer):
     df['document_plaintext'] = df['document_plaintext'].apply(lambda x: f(x))
     df['question_text'] = df['question_text'].apply(lambda x: f(x))
     df['answer_text'] = df.apply(lambda x: label_seq(x['answer_text'], x['document_plaintext'], x['answerable']), axis=1)
-    # for i in range(len(df.index)):
-    #     df['answer_text'].iloc[i] = label_seq(df['answer_text'].iloc[i], df['document_plaintext'].iloc[i], df['answerable'].iloc[i])
     return df[l_name]
-    # return list(df[l_name].itertuples(index=False))
-    # pass
 
 def label_seq(answer_text, document_plaintext, answerable):
     res = [0 for _ in range(len(document_plaintext))]

@@ -62,16 +62,3 @@ def get_tokens(docs):
 
 def tokenize_cell(doc):
     return wordpunct_tokenize(doc)
-
-# def split_punct(doc):
-#     res = ""
-#     for i, c in enumerate(doc):
-#         if ud.category(c).startswith('P'):
-#             if i == 0:
-#                 res += c
-#             elif i == len(doc) - 1:
-#                 res += ' '
-#                 res += c
-            
-#         else:
-#            res += c 

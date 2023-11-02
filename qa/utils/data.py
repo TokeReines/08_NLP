@@ -24,13 +24,7 @@ class BertDataset(torch.utils.data.Dataset):
             doc_word = [None for _ in doc]
         ques = self.transform(ques)
         doc = self.transform(doc)
-        # for i in range(len(ans)):
-        #     ans[i] = np.concatenate([[-1], ans[i], [-1]])
-
-        # if self.transform_word is not None:
         self.data = list(zip(ques, ans_start, ans, answerable, doc, ques_word, doc_word, start, end))
-        # else:
-        #     self.data = list(zip(ques, ans_start, ans, answerable, doc))
 
     def __len__(self):
         return len(self.data)

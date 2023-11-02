@@ -50,11 +50,8 @@ class TransformerEmbedding(nn.Module):
         tokens = pad(tokens[mask].split(lens.tolist()), self.pad_index, padding_side=self.tokenizer.padding_side)
         token_mask = pad(mask[mask].split(lens.tolist()), 0, padding_side=self.tokenizer.padding_side)
 
-        # return the hidden states of all layers
         x = self.model(tokens[:, :self.max_len], attention_mask=token_mask[:, :self.max_len].float())[-1]
-        # [batch_size, max_len, hidden_size]
         x = self.scalar_mix(x[-self.n_layers:])
-        # [batch_size, n_tokens, hidden_size]
         for i in range(self.stride, (tokens.shape[1]-self.max_len+self.stride-1)//self.stride*self.stride+1, self.stride):
             part = self.model(tokens[:, i:i+self.max_len], attention_mask=token_mask[:, i:i+self.max_len].float())[-1]
             x = torch.cat((x, self.scalar_mix(part[-self.n_layers:])[:, self.max_len-self.stride:]), 1)
@@ -121,7 +118,6 @@ class TransformerEmbeddingQuesDoc(nn.Module):
         self.max_len = int(max(0, self.model.config.max_position_embeddings) or 1e12) - 2
         self.stride = min(stride, self.max_len)
         self.doc_stride = stride
-        # self.doc_max_len = 315
         self.doc_max_len = 384
 
         self.scalar_mix = ScalarMix(self.n_layers, mix_dropout)
@@ -157,7 +153,6 @@ class TransformerEmbeddingQuesDoc(nn.Module):
             d_i = d_tokens[i]
             d_mask_i = d_i.ne(self.pad_index).any(-1)
             d_i = d_i[d_mask_i]
-            # print(q_i.shape, d_i.shape)
             new_batch = torch.cat([q_i, d_i[:self.doc_max_len], eos], 0)
             batch_id.append(i)
             tokens.append(new_batch)
@@ -176,10 +171,8 @@ class TransformerEmbeddingQuesDoc(nn.Module):
 
         # return the hidden states of all layers
         x = self.model(tokens[:, :self.max_len], attention_mask=token_mask[:, :self.max_len].float())[-1]
-        # [batch_size, max_len, hidden_size]
-        # x = self.scalar_mix(x[-self.n_layers:])
         x = x[-1]
-        # [batch_size, n_tokens, hidden_size]
+
         for i in range(self.stride, (tokens.shape[1]-self.max_len+self.stride-1)//self.stride*self.stride+1, self.stride):
             part = self.model(tokens[:, i:i+self.max_len], attention_mask=token_mask[:, i:i+self.max_len].float())[-1]
             x = torch.cat((x, part[-1][:, self.max_len-self.stride:]), 1)
@@ -197,25 +190,8 @@ class TransformerEmbeddingQuesDoc(nn.Module):
             x = x.sum(2) / lens.unsqueeze(-1)
         elif self.pooling:
             raise RuntimeError(f'Unsupported pooling method "{self.pooling}"!')
-        # print(tokens)
+
         x = self.projection(x)
         x = self.dropout(x)
-        # print(x)
-        # print(x)
-        # x_q = x.new_zeros(batch, ques_len, self.hidden_size)
-        # x_d = x.new_zeros(batch, doc_len, self.hidden_size)
-        # for i in range(batch):
-        #     x_ = x[batch_id.eq(i)]
-        #     x_q_ = torch.mean(x_[:, :ques_len, :], 0)
-        #     x_d_ = x_[:, ques_len:, :]
-        #     if x_.shape[0] > 1:
-        #         #TODO: mean pooling
-        #         x_d_t = torch.cat([x_d_[j, self.doc_max_len-self.doc_stride:] for j in range(1, x_.shape[0])], 0)
-        #         x_d_ = torch.cat([x_d_[0], x_d_t], 0)
-        #     else:
-        #         x_d_ = x_d_[0]
-        #     x_d_ = x_d_[:doc_len]
-        #     x_q[i] = x_q_
-        #     x_d[i] = x_d_
-        # print(x_q, x_d)
+
         return x[:, :ques_len, :], x[:, ques_len:, :], batch_id, mask.any(-1)[:, :ques_len], mask.any(-1)[:, ques_len:]
